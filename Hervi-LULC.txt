@@ -1,0 +1,253 @@
+//========================================================================
+//=====================       Hervi LandUse Map       ====================
+//========================================================================
+//* Center map on the study area
+//
+Map.centerObject(Boundry);
+Map.addLayer(Boundry);
+//========================================================================
+//========================================================================
+//* Landsat 8: surface reflectance TIER 1 image list
+//             with less than 10% cloud cover
+//
+var LandsatList = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-01-01','2016-01-01')
+.filter(ee.Filter.lessThan('CLOUD_COVER',10));
+print(LandsatList,'Landsat 8 LC08T1 image list');
+//
+//========================================================================
+//* Landsat 8: Yearly Surface reflectance TIER 1 timeseries Median image 
+//             with less than 10% cloud cover
+//
+var LandsatMedian = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-01-01','2016-01-01')
+.filter(ee.Filter.lessThan('CLOUD_COVER',10))
+.median()
+.float()
+.clip(Boundry);
+//
+//------------------------------------------------------------------------
+////** Landsat 8 Median NDSI (Normalized Difference Snow Index)
+//
+var LasdsatNDSI = LandsatMedian.normalizedDifference(['B4','B6']);
+//
+//------------------------------------------------------------------------
+//* Landsat 8: Yearly median NDVI (Normalized Difference Vegetation Index)
+//
+var NDVILandsatMedian = LandsatMedian.normalizedDifference(['B5','B4']);
+//
+//------------------------------------------------------------------------
+//* Landsat 8: Yearly median MVC (Maximum Value Composite)
+//
+var NDVImedianlist = LandsatList.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVCLandsatMedian = NDVImedianlist.max().clip(Boundry);
+//
+//========================================================================
+////** Landsat 8 Seasonal NDVI(Normalized Difference Vegetation Index) &
+//     MVC (Maximum Value Composite) Calculation
+//------------------------------------------------------------------------
+//* Landsat Images for winter
+//
+var landsatWINTER = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-01-01','2015-04-01');
+//
+//* NDVI & MCV : Landsat Images for winter
+var NDVIWINTER = landsatWINTER.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVCWINTER = NDVIWINTER.max().clip(Boundry);
+//
+//------------------------------------------------------------------------
+//* Landsat Images for spring
+//
+var landsatSPRING = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-04-01','2015-07-01');
+//
+//* NDVI & MCV : Landsat Images for spring
+var NDVISPRING = landsatSPRING.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVCSPRING = NDVISPRING.max().clip(Boundry);
+//
+//------------------------------------------------------------------------
+//* Landsat Images for summer
+//
+var landsatSUMMER = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-07-01','2015-10-01');
+//
+//* NDVI & MCV : Landsat Images for summer
+var NDVISUMMER = landsatSUMMER.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVCSUMMER = NDVISUMMER.max().clip(Boundry);
+//------------------------------------------------------------------------
+//* Landsat Images for fall
+//
+var landsatFALL = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-10-01','2016-01-01');
+//
+//* NDVI & MCV : Landsat Images for fall
+var NDVIFALL = landsatFALL.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVCFALL = NDVIFALL.max().clip(Boundry);
+//------------------------------------------------------------------------
+//* Landsat Seasonal MVC Stack
+//
+var MVCseasonal = MVCWINTER.addBands(MVCSPRING)
+.addBands(MVCSUMMER).addBands(MVCFALL);
+//
+//
+//========================================================================
+////** Landsat 8 Trisect NDVI(Normalized Difference Vegetation Index) &
+//     MVC (Maximum Value Composite)
+//------------------------------------------------------------------------
+//* Landsat Images for 1st part
+//
+var landsat1st = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-01-01','2015-5-01');
+//
+//* NDVI & MCV : Landsat Images for The 1st four months of the year
+var NDVI1st = landsat1st.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVC1st = NDVI1st.max().clip(Boundry);
+//
+//------------------------------------------------------------------------
+//* Landsat Images for 2nd part
+//
+var landsat2nd = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-05-01','2015-09-01');
+//
+//* NDVI & MCV : Landsat Images for The 2nd four months of the year
+var NDVI2nd = landsat2nd.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVC2nd = NDVI2nd.max().clip(Boundry);
+//
+//------------------------------------------------------------------------
+//* Landsat Images for 3rd part
+//
+var landsat3rd = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR')
+.filterBounds(Boundry)
+.filterDate('2015-09-01','2016-01-01');
+//
+//* NDVI & MCV : Landsat Images for The 3rd four months of the year
+var NDVI3rd = landsat3rd.map(function(image){
+  return image.normalizedDifference(['B5','B4']).clip(Boundry);
+});
+var MVC3rd = NDVI3rd.max().clip(Boundry);
+//
+//------------------------------------------------------------------------
+//* Landsat Trisect MVC Stack
+var MVCtrisect = MVC1st.addBands(MVC2nd).addBands(MVC3rd);
+//
+//========================================================================
+//* Sentinel 2: 2016 Top-of-Atmosphere Reflectance Level-1C image list
+//              with less than 10% cloud cover
+//
+var Sentinel2List = ee.ImageCollection("COPERNICUS/S2")
+.filterBounds(Boundry)
+.filterDate('2016-01-01','2017-01-01')
+.filter(ee.Filter.lessThan('CLOUDY_PIXEL_PERCENTAGE',10));
+//
+//========================================================================
+//------------------------------------------------------------------------
+//* Sentinel 2: Yearly median Image 
+//
+var Sentinel2Median = ee.ImageCollection("COPERNICUS/S2")
+.filterBounds(Boundry)
+.filterDate('2016-01-01','2017-01-01')
+.filter(ee.Filter.lessThan('CLOUDY_PIXEL_PERCENTAGE',10))
+.median()
+.float()
+.clip(Boundry);
+//
+//------------------------------------------------------------------------
+//* Sentinel 2: Yearly median NDVI(Normalized Difference Vegetation Index)
+//             with less than 10% cloud cover
+//
+var NDVISent2Med = Sentinel2Median.normalizedDifference(['B8','B4']);
+//
+//------------------------------------------------------------------------
+//* Sentinel 2: Yearly median MVC (Maximum Value Composite)
+//             with less than 10% cloud cover
+//
+var NDVISent2Medlist = Sentinel2List.map(function(image){
+  return image.normalizedDifference(['B8','B4']).clip(Boundry);
+});
+var MVCSent2Med = NDVISent2Medlist.max().clip(Boundry);
+//
+//========================================================================
+//* Alos DSM
+//
+var DSM = ee.Image("JAXA/ALOS/AW3D30_V1_1")
+.clip(Boundry)
+.select('AVE');
+//
+//========================================================================
+//* Stack image
+//
+var Stack = LandsatMedian.addBands(NDVILandsatMedian)
+.addBands(MVCLandsatMedian).addBands(MVCseasonal)
+.addBands(MVCtrisect).addBands(LasdsatNDSI)
+.addBands(Sentinel1Median).addBands(Sentinel2Median)
+.addBands(NDVISent2Med).addBands(MVCSent2Med);
+//
+//========================================================================
+//* Supervised Classification
+var SupervisedTraingSet = urban.merge(snow).merge(baren)
+.merge(pasture).merge(aggri).merge(orchard);
+//
+//------------------------------------------------------------------------
+//* Set training collection
+//
+var TrainingCollection = Stack.sampleRegions({
+  collection : SupervisedTraingSet,
+  properties : ['LU'],
+  scale : 30
+});
+//
+print(TrainingCollection);
+//
+//------------------------------------------------------------------------
+//* Set Classifier
+//
+var Classifier = ee.Classifier.smileRandomForest(505).train({
+  features : TrainingCollection,
+  classProperty : 'LU',
+});
+//
+var SupervisedClassification = Stack.classify(Classifier);
+//
+Map.addLayer(SupervisedClassification,{min: 0, max: 4,
+  pallete : ['black','white','yellow','blue','green','purple']
+});
+//
+//------------------------------------------------------------------------
+//* Validation
+//
+print('confusion matrix',Classifier.confusionMatrix());
+print('overal accuracy',Classifier.confusionMatrix().accuracy());
+//
+//========================================================================
+//* Export to Google DRIVE
+Export.image.toDrive({
+  image: SupervisedClassification,
+  description: 'SupervisedClassification',
+  region: Boundry,
+  scale: 30,
+  maxPixels: 1e9,
+  folder: 'GEE',
+});
+//
